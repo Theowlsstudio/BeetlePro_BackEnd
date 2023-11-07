@@ -14,7 +14,7 @@ import TestRoute from "./routes/test.js";
 import morgan from "morgan";
 import * as middleware from "./utils/loggerMiddleware.js";
 import ImageRoute from "./routes/image.js";
-import { conversation, create_message, create_topic } from "./utils/chat.js";
+import { chatList, conversation, create_message, create_topic } from "./utils/chat.js";
 const app = express();
 
 app.use(helmet());
@@ -56,6 +56,13 @@ app.get("/conversation", async (req, res) => {
   const data = await conversation();
   res.send(data);
 });
+
+// Get Conversation
+app.get("/chat-list", async (req, res) => {
+  const data = await chatList();
+  res.send(data);
+});
+
 
 app.use("/auth", AuthRoute);
 app.use("/order", OrderRoute);

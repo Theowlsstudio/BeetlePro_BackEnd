@@ -1,9 +1,9 @@
 import Chats from "../models/Chat.js";
 import Messages from "../models/Messages.js";
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
-const objectId = mongoose.Types.ObjectId
-// Create topic each order 
+const objectId = mongoose.Types.ObjectId;
+// Create topic each order
 export const create_topic = async (driver, client, order) => {
   try {
     const topic = await Chats.findOne({ driver, client, order });
@@ -51,11 +51,11 @@ export const create_message = async (senderType, senderId, message, chatId) => {
 };
 
 // It will fetch conversation of an order of driver and users
-export const conversation = async () => {
+export const conversation = async (loggedInUser, conversationId) => {
   const listChat = await Chats.aggregate([
     {
       $match: {
-        _id: new objectId("654930bbf7bccb4d695a6956"),
+        _id: new objectId(conversationId),
       },
     },
     {
@@ -113,10 +113,7 @@ export const conversation = async () => {
                 "$$item",
                 {
                   own: {
-                    $eq: [
-                      "$$item.senderId",
-                      new objectId("6526d1ca76cec2d8d6d94f9f"),
-                    ],
+                    $eq: ["$$item.senderId", new objectId(loggedInUser)],
                   },
                   realDateTime: {
                     $dateToString: {
@@ -134,5 +131,132 @@ export const conversation = async () => {
       },
     },
   ]);
-  return listChat
+  return listChat;
+};
+
+export const chatList = async () => {
+  const list = await Chats.aggregate([
+    {
+      $match: {
+        $or: [
+          {
+            driver: new objectId("6526d676dcee5acd6a28016d"),
+          },
+          {
+            client: new objectId("6526d676dcee5acd6a28016d"),
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "drivers",
+        localField: "driver",
+        foreignField: "_id",
+        as: "driver_data",
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "client",
+        foreignField: "_id",
+        as: "client_data",
+      },
+    },
+    {
+      $set: {
+        driver_details: {
+          name: {
+            $ifNull: [
+              {
+                $first: "$driver_data.name",
+              },
+              "",
+            ],
+          },
+          image: {
+            $ifNull: [
+              {
+                $first: "$driver_data.image",
+              },
+              "",
+            ],
+          },
+        },
+        client_details: {
+          name: {
+            $ifNull: [
+              {
+                $first: "$client_data.name",
+              },
+              "",
+            ],
+          },
+          image: {
+            $ifNull: [
+              {
+                $first: "$client_data.user_image",
+              },
+              "",
+            ],
+          },
+        },
+      },
+    },
+    {
+      $set: {
+        user_name: {
+          $cond: [
+            {
+              $eq: [new objectId("6526d1ca76cec2d8d6d94f9f"), "$driver"],
+            },
+            "$client_details.name",
+            "$driver_details.name",
+          ],
+        },
+        user_image: {
+          $cond: [
+            {
+              $eq: [new objectId("6526d1ca76cec2d8d6d94f9f"), "$driver"],
+            },
+            "$client_details.image",
+            "$driver_details.image",
+          ],
+        },
+        lastMessage: {
+          $arrayElemAt: ["$messages", -1],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "messages",
+        localField: "lastMessage",
+        foreignField: "_id",
+        as: "lastMessage",
+      },
+    },
+    {
+      $set: {
+        lastMessage: {
+          $ifNull: [
+            {
+              $first: "$lastMessage",
+            },
+            null,
+          ],
+        },
+      },
+    },
+    {
+      $project: {
+        user_name: 1,
+        user_image: 1,
+        lastMessage: 1,
+      },
+    },
+  ]);
+
+  return list
 };
