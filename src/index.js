@@ -4,7 +4,7 @@ import * as logger from "./utils/logger.js";
 import http from "http";
 import { Server } from "socket.io";
 // import socketIndex from "./socketIndex.js";
-import { socketInitialization } from "./socket/chat/initialization.js";
+import { socketInitialization } from "./socket/initialization.js";
 
 const server = http.createServer(app);
 

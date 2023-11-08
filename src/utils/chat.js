@@ -250,13 +250,93 @@ export const chatList = async () => {
       },
     },
     {
+      $set: {
+        time: {
+          $ifNull: [
+            {
+              timeDifference: {
+                $subtract: [
+                  new Date(), // Current time
+                  { $toDate: "$lastMessage.createdAt" }, // Convert the field to a date
+                ],
+              },
+            },
+            "",
+          ],
+        },
+        dayOfWeek: {
+          $dayOfWeek: { date: { $toDate: "$lastMessage.createdAt" } },
+        },
+      },
+    },
+    {
+      $set: {
+        date: {
+          $trunc: {
+            $divide: ["$time.timeDifference", 86400000],
+          },
+        },
+
+        dayName: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$dayOfWeek", 1] }, then: "Sunday" },
+              { case: { $eq: ["$dayOfWeek", 2] }, then: "Monday" },
+              { case: { $eq: ["$dayOfWeek", 3] }, then: "Tuesday" },
+              { case: { $eq: ["$dayOfWeek", 4] }, then: "Wednesday" },
+              { case: { $eq: ["$dayOfWeek", 5] }, then: "Thursday" },
+              { case: { $eq: ["$dayOfWeek", 6] }, then: "Friday" },
+              { case: { $eq: ["$dayOfWeek", 7] }, then: "Saturday" },
+            ],
+            default: "Sunday",
+          },
+        },
+      },
+    },
+    {
+      $set: {
+        time: {
+          $switch: {
+            branches: [
+              {
+                case: { $lt: ["$date", 1] },
+                then: {
+                  $dateToString: {
+                    format: "%H:%M",
+                    date: { $toDate: "$lastMessage.createdAt" },
+                  },
+                },
+              },
+              { case: { $lt: ["$date", 2] }, then: "Yesterday" },
+              { case: { $eq: ["$date", 3] }, then: "$dayName" },
+              {
+                case: { $gte: ["$date", 3] },
+                then: {
+                  $dateToString: {
+                    format: "%m-%d-%Y", // Change format to "%B %d, %Y" for "month date year"
+                    date: { $toDate: "$lastMessage.createdAt" },
+                  },
+                },
+              },
+            ],
+            default: "",
+          },
+        },
+      },
+    },
+    {
       $project: {
         user_name: 1,
         user_image: 1,
-        lastMessage: 1,
+        lastMessage: {
+          content: {
+            $ifNull: ["$lastMessage.message", ""],
+          },
+          time: "$time",
+        },
       },
     },
   ]);
 
-  return list
+  return list;
 };
